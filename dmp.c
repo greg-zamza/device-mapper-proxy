@@ -13,23 +13,25 @@ struct dmp_data {
 /* обработка bio запросов */
 static int dmp_map(struct dm_target *ti, struct bio *bio)
 {
-	printk(KERN_CRIT " DMP_MAP IN \n");
-
 	struct dmp_data *data = (struct dmp_data *) ti->private;
 	
-	/*bio->bi_bdev = data->dev->bdev;*/
 	bio_set_dev(bio, data->dev->bdev);
+	
+	bool flush_bio = (bio->bi_opf & REQ_PREFLUSH);
+	bool fua_bio = (bio->bi_opf & REQ_FUA);
+	bool discard_bio = (bio_op(bio) == REQ_OP_DISCARD);
+	bool meta_bio = (bio->bi_opf & REQ_META);
 
-	/*printk(KERN_CRIT "bi_opf value: %u\n", bio->bi_opf);*/
-
+	printk(KERN_CRIT "meta: %u\n", meta_bio);
+	/*printk(KERN_CRIT "bi_flags: %u\n", bio->bi_flags);*/
+	printk(KERN_CRIT "bv_len: %u\n", bio->bi_io_vec->bv_len);
+	printk(KERN_CRIT "bi_status: %u\n", bio->bi_status);
+	
 	/*if((bio->bi_opf & WRITE) == WRITE)
 		printk(KERN_DEBUG "\n dmp: bio is a write request.... \n");
 	else
 		printk(KERN_DEBUG "\n dmp: bio is a read request.... \n");*/
 	
-	/*submit_bio(bio);*/
-	
-	printk(KERN_CRIT " DMP: DMP_MAP exit (i hope there is no troubles...) \n");
 	return DM_MAPIO_REMAPPED;
 }
 
