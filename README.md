@@ -4,7 +4,9 @@
 ## Зависимости
 ! модуль разрабатывался и тестировался на Fedora с ядром версии 6.6.13-200.fc39.x86_64 !
 ```
-dnf install kernel-devel-6.5.6-300.fc39.x86_64
+dnf install @development-tools
+dnf install kernel-devel
+dnf install kernel-devel-$(uname -r)
 ```
 
 ## building
