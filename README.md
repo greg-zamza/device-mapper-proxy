@@ -9,7 +9,7 @@ dnf install kernel-devel-6.5.6-300.fc39.x86_64
 
 ## building
 ```
-git clone https://greg-zamza/device-mapper-proxy
+git clone https://github.com/greg-zamza/device-mapper-proxy
 cd device-mapper-proxy
 make
 ```
