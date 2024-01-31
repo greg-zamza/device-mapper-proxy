@@ -11,17 +11,21 @@
 
 struct dmp_data {
 	struct dm_dev *dev;	/* bdev, с которым связан наш mapped device */
-	unsigned int reads;
-	unsigned int writes;
+	struct kobject *pointer_to_kobject;
 };
 
-static int test_data = 10;
+static unsigned int writes = 0;
+static unsigned int avg_writes = 0;
+
+static unsigned int reads = 0;
+static unsigned int avg_reads = 0;
 
 static ssize_t volumes_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf) 
 {
-	printk(KERN_CRIT "\n\nVERY IMPORTANT!!! VOLUMES_SHOW IN\n\n");
-	int res = sysfs_emit(buf, "%d\n", test_data);
-	printk(KERN_CRIT "\n\nsysfs_emit_len: %d\n\n", res);
+	int res = sysfs_emit(buf,
+			"read:\n\treqs: %d\n\tavg_size: %d\nwrite:\n\treqs: %d\n\tavg_size: %d\ntotal:\n\treqs: %d\n\tavg_size: %d\n",
+			reads, avg_reads, writes, avg_writes,
+			reads + writes, (avg_reads * reads + avg_writes * writes) / (reads + writes));
 	return res;
 }
 
@@ -35,17 +39,31 @@ static int dmp_map(struct dm_target *ti, struct bio *bio)
 	bool write = (bio_data_dir(bio) == WRITE);
 	bool read = (bio_data_dir(bio) == READ);
 	
+	if (!bio_has_data(bio))
+		return DM_MAPIO_REMAPPED;
+	
+	unsigned int bio_size = bio->bi_iter.bi_size;
+	printk(KERN_DEBUG "bio_size: %u\n", bio_size);
+
 	if (write) {
-		printk(KERN_DEBUG "dmp: write request\n");
-		data->writes = data->writes + 1;
-		printk(KERN_CRIT "dmp: writes: %u\n\n", data->writes);
+		writes = writes + 1;
+		printk(KERN_CRIT "dmp: write request\n");
+		printk(KERN_CRIT "dmp: writes: %u\n\n", writes);
+
+		if (avg_writes)
+			avg_writes = (writes * avg_writes + bio_size) / (writes + 1);
+		else
+			avg_writes = bio_size;
 	}
 
 	if (read) {
+		reads = reads + 1;
 		printk(KERN_DEBUG "dmp: read request\n");
-		data->reads = data->reads + 1;
-		printk(KERN_DEBUG "dmp: reads: %u\n\n", data->reads);
-		/*запись числа в sysfs*/
+		printk(KERN_DEBUG "dmp: reads: %u\n\n", reads);
+		if (avg_reads)
+			avg_reads = (reads * avg_reads + bio_size) / (reads + 1);
+		else
+			avg_reads = bio_size;
 	}
 
 	return DM_MAPIO_REMAPPED;
@@ -75,10 +93,14 @@ static int dmp_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto bad;
 	}
 		
-	printk(KERN_CRIT " DMP_CTR: finish \n");
+	static struct kobj_attribute volumes_attr = __ATTR_RO(volumes);
+	struct kobject *dmp_object = kobject_create_and_add("dmp", kernel_kobj);
 	
-	data->writes = 0;
-	data->reads = 0;
+	int error = sysfs_create_file(dmp_object, &volumes_attr.attr);
+	if (error)
+		return error;
+
+	data->pointer_to_kobject=dmp_object;
 	ti->private = data;
 
 	return 0;
@@ -95,6 +117,7 @@ static void dmp_dtr(struct dm_target *ti)
 	dm_put_device(ti, data->dev);
 	/*kobject_put(data->kobj_dir);
 	sysfs_remove_file(kernel_kobj, data->volumes_attr.attr);*/
+	kobject_put(data->pointer_to_kobject);
 	kfree(data);
 }
 
@@ -107,7 +130,6 @@ static struct target_type target_dmp = {
 	.map = dmp_map,
 };
 
-
 static int init_dmp(void)
 {
 	int result;
@@ -115,17 +137,12 @@ static int init_dmp(void)
 	if(result < 0)
 		printk(KERN_CRIT "\n Error in registering target \n");
 
-	static struct kobj_attribute volumes_attr = __ATTR_RO(volumes);
-	struct kobject *dmp_object = kobject_create_and_add("dmp", kernel_kobj);
-	
-	int error = sysfs_create_file(dmp_object, &volumes_attr.attr);
-
-	return error;
+	return 0;
 }
 
 static void cleanup_dmp(void)
 {
-  dm_unregister_target(&target_dmp);
+	dm_unregister_target(&target_dmp);
 }
 
 module_init(init_dmp);
