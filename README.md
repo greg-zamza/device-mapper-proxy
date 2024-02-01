@@ -3,12 +3,19 @@
 
 ## Зависимости
 ! модуль разрабатывался и тестировался на Fedora с ядром версии 6.6.13-200.fc39.x86_64 !
+upd: протестировано на Debian с ядром версии 6.1.0-15-amd64
+
+Fedora:
 ```
 dnf install @development-tools
 dnf install kernel-devel
 dnf install kernel-devel-$(uname -r)
 ```
-
+Debian:
+```
+apt-get install build-essential
+apt-get install linux-headers-$(uname -r)
+```
 ## building
 ```
 git clone https://github.com/greg-zamza/device-mapper-proxy
