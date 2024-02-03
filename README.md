@@ -52,7 +52,7 @@ dmsetup create dmp1 --table "0 2560 dmp /dev/mapper/zero1"
 ## Тестирование
 ```
 dd if=/dev/random of=/dev/mapper/dmp1 bs=4k count=10
-dd if=/dev/mapper/dmp1 of=/dev/bull bs=4k count=10
+dd if=/dev/mapper/dmp1 of=/dev/null bs=4k count=10
 cat /sys/kernel/dmp/volumes
 ```
 Также во время выполнения блочных I/O операций можно посмотреть логи:
